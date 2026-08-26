@@ -60,6 +60,12 @@ end
             idx_ptr_i8 = inbounds_gep!(builder, T_int8, ptr, [ConstantInt(offset)])
             idx_ptr_T = bitcast!(builder, idx_ptr_i8, T_ptr_T)
             idx_T = load!(builder, T_T, idx_ptr_T)
+            # The dispatch pointer is (at least) 4-byte aligned, so packet fields
+            # at 4-byte-multiple offsets are too. Without this, the i16 loads
+            # default to align 2 and the backend cannot keep the merged access
+            # dword-aligned, so it falls back from SMEM (s_load) to a VMEM read
+            # of the (uncached, fine-grained) queue memory on every wave.
+            alignment!(idx_T, gcd(4, offset))
             idx = zext!(builder, idx_T, T_int32)
 
             # attach range metadata
